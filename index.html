@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TenderTales</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Playfair Display', serif;
+      margin: 0;
+      background-image: url('background.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      color: white;
+      text-align: center;
+    }
+    .container {
+      padding: 40px 20px;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    h1 {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+    h2 {
+      font-size: 32px;
+      margin-top: 40px;
+    }
+    form {
+      margin-top: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    input[type="text"], input[type="file"] {
+      padding: 10px;
+      margin: 10px;
+      border-radius: 10px;
+      border: none;
+      max-width: 300px;
+      width: 100%;
+    }
+    label {
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 20px;
+      border-radius: 10px;
+      border: none;
+      background-color: #f0c14b;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .how-it-works {
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 30px;
+      border-radius: 15px;
+      margin-top: 40px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    footer {
+      margin-top: 40px;
+      font-size: 14px;
+    }
+    #storyOutput {
+      margin-top: 40px;
+      padding: 20px;
+      background-color: rgba(255, 255, 255, 0.85);
+      color: black;
+      border-radius: 12px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: left;
+    }
+    @media screen and (max-width: 600px) {
+      h1 { font-size: 36px; }
+      h2 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TenderTales</h1>
+    <p>Create magical stories personalized with your child's name, interests, and photo.</p>
+
+    <form id="storyForm">
+      <input type="text" name="name" placeholder="Child's Name" required />
+      <input type="text" name="interests" placeholder="Interests (e.g., dinosaurs, space)" required />
+      <label for="photo">(Optional) Upload a photo!</label>
+      <input type="file" name="photo" accept="image/*" />
+      <button type="submit">Generate Story</button>
+    </form>
+
+    <div id="loading" style="display: none; margin-top: 20px;">
+      <p style="color: black;">Generating preview...</p>
+      <div class="spinner" style="border: 6px solid #f3f3f3; border-top: 6px solid black; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+    </div>
+
+    <div class="how-it-works">
+      <h2>How It Works</h2>
+      <p>Tell us about your child (name, interests, optional photo).<br />
+      Our AI creates a unique story starring your child.<br />
+      Receive a downloadable PDF (and optional narration in your voice!).</p>
+    </div>
+
+    <div id="storyOutput"></div>
+
+    <footer>
+      <p>© 2025 TenderTales. We respect your privacy. Your data is yours, everything is deleted in 24 hours.</p>
+    </footer>
+  </div>
+
+  <script>
+    document.getElementById('storyForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('storyOutput').innerHTML = '';
+
+      try {
+        const res = await fetch('http://localhost:3000/generate-story', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+        if (data.story) {
+          document.getElementById('storyOutput').innerHTML = data.story;
+        } else {
+          document.getElementById('storyOutput').innerHTML = '<p>Something went wrong. Try again!</p>';
+        }
+      } catch (err) {
+        document.getElementById('storyOutput').innerHTML = '<p>Error generating story.</p>';
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+
+    const style = document.createElement('style');
+    style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>
