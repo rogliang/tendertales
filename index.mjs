@@ -7,7 +7,6 @@ import { OpenAI } from 'openai';
 import dotenv from 'dotenv';
 
 const app = express();
-app.use(cors());
 const port = 3000;
 dotenv.config({ path: './pw.env' });
 
