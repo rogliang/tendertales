@@ -6,9 +6,17 @@ import path from 'path';
 import { OpenAI } from 'openai';
 import dotenv from 'dotenv';
 
+dotenv.config({ path: './pw.env' });
+
 const app = express();
 const port = 3000;
-dotenv.config({ path: './pw.env' });
+
+// ✅ Allow GitHub Pages origin
+app.use(cors({
+  origin: 'https://rogliang.github.io',
+  methods: ['POST', 'GET'],
+  allowedHeaders: ['Content-Type']
+}));
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -25,7 +33,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(express.static(path.join(process.cwd())));
@@ -80,5 +87,5 @@ app.post('/generate-story', upload.single('photo'), async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`TenderTales server running at http://localhost:${port}`);
+  console.log(`✅ TenderTales server running at http://localhost:${port}`);
 });
