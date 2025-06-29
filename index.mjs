@@ -1,83 +1,100 @@
 import express from 'express';
 import multer from 'multer';
-import cors from 'cors';
-import fs from 'fs';
-import path from 'path';
-import { OpenAI } from 'openai';
 import dotenv from 'dotenv';
+import cors from 'cors';
+import { readFile } from 'fs/promises';
+import Replicate from 'replicate';
+import { OpenAI } from 'openai';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config({ path: './pw.env' });
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// ✅ Allow GitHub Pages origin
+const upload = multer({ dest: 'uploads/' });
+
+// CORS config to allow frontend access
 app.use(cors({
-  origin: 'https://rogliang.github.io',
-  methods: ['POST', 'GET'],
-  allowedHeaders: ['Content-Type']
+  origin: ['https://rogliang.github.io', 'https://tendertales.onrender.com'],
+  methods: ['GET', 'POST'],
 }));
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+app.use(express.static('public'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = './uploads';
-    if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath);
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-const upload = multer({ storage });
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+});
 
-app.use(express.json());
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-app.use(express.static(path.join(process.cwd())));
+// Helper: Generate story prompt
+function buildPrompt(name, interests) {
+  return `Write a creative, imaginative, and heartwarming short story for a child named ${name} who loves ${interests}. The story should be written in simple, engaging language with whimsical details and a strong sense of wonder.`;
+}
 
 app.post('/generate-story', upload.single('photo'), async (req, res) => {
   const { name, interests } = req.body;
-  const photo = req.file;
+  const photoPath = req.file ? `/uploads/${req.file.filename}` : null;
 
   if (!name || !interests) {
     return res.status(400).json({ error: 'Missing name or interests' });
   }
 
-  const prompt = `
-  Write a magical, imaginative children's story for a child named "${name}" who loves ${interests}.
-
-  The story should:
-  - Be heartwarming and adventurous
-  - Use a whimsical and lyrical tone
-  - Be written in the third person
-  - Be at least 500 words long
-  - Include a clear beginning, middle, and end
-  - Take place in a fantastical world that reflects the child's interests
-  - Use simple language suitable for a child aged 3–7
-  - Optionally, incorporate gentle lessons about kindness, curiosity, or bravery
-  `;
-
   try {
-    const chatResponse = await openai.chat.completions.create({
+    // Step 1: Generate story
+    const prompt = buildPrompt(name, interests);
+
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: 'You are a children\'s book author.' },
-        { role: 'user', content: prompt }
+        { role: 'system', content: 'You are a children’s story author.' },
+        { role: 'user', content: prompt },
       ],
       temperature: 0.8,
-      max_tokens: 1000
+      max_tokens: 600,
     });
 
-    const storyText = chatResponse.choices[0].message.content.trim();
+    const storyText = completion.choices[0].message.content;
 
-    let storyHtml = `<div style="overflow: hidden; font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;">`;
-    if (photo) {
-      const imageUrl = `/uploads/${photo.filename}`;
-      storyHtml += `<img src="${imageUrl}" style="float: left; margin: 10px; max-width: 200px; border-radius: 10px;" />`;
+    // Step 2: Generate cartoon-style image via SDXL (optional)
+    let imageUrl = null;
+    try {
+      const output = await replicate.run(
+        'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
+        {
+          input: {
+            prompt: `A cartoon-style illustration of ${name} exploring a magical world filled with ${interests}`,
+            width: 768,
+            height: 768,
+            refine: 'expert_ensemble_refiner',
+            apply_watermark: false,
+            num_inference_steps: 25,
+          },
+        }
+      );
+      if (Array.isArray(output) && output.length > 0) {
+        imageUrl = output[0];
+      }
+    } catch (err) {
+      console.warn('⚠️ Cartoon image generation failed:', err.message);
     }
-    storyHtml += `<p style="font-size: 18px; line-height: 1.6;">${storyText.replace(/\n/g, '<br/>')}</p></div>`;
+
+    // Step 3: Construct HTML story response
+    const storyHtml = `
+      <div style="overflow: hidden;">
+        ${photoPath ? `<img src="${photoPath}" alt="Uploaded photo" style="float: right; max-width: 200px; margin-left: 20px; border-radius: 10px;" />` : ''}
+        ${imageUrl ? `<img src="${imageUrl}" alt="AI-generated cartoon" style="float: left; max-width: 200px; margin-right: 20px; border-radius: 10px;" />` : ''}
+        <p style="font-size: 18px; line-height: 1.6;">${storyText}</p>
+      </div>
+    `;
 
     res.json({ story: storyHtml });
   } catch (error) {
@@ -87,5 +104,5 @@ app.post('/generate-story', upload.single('photo'), async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`✅ TenderTales server running at http://localhost:${port}`);
+  console.log(`✅ Server listening on port ${port}`);
 });
