@@ -1,0 +1,11 @@
+# Ignore uploaded content
+uploads/
+
+# Ignore logs
+*.log
+logs/
+
+# Ignore environment secrets
+*.env
+
+
