@@ -20,10 +20,13 @@ const upload = multer({ dest: 'uploads/' });
 
 // CORS config to allow frontend access
 app.use(cors({
-  origin: ['https://rogliang.github.io', 'https://tendertales.onrender.com'],
+  origin: ['https://rogliang.github.io', 'https://tendertales.onrender.com', 'null'],
   methods: ['GET', 'POST'],
   credentials: false,
 }));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
