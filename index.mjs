@@ -22,6 +22,7 @@ const upload = multer({ dest: 'uploads/' });
 app.use(cors({
   origin: ['https://rogliang.github.io', 'https://tendertales.onrender.com'],
   methods: ['GET', 'POST'],
+  credentials: false,
 }));
 
 app.use(express.static('public'));
